@@ -435,7 +435,7 @@ export default function ChatInterface() {
         <div
           className={cn(
             "max-w-[80%] px-4 py-2 rounded-2xl",
-            message.type === "user" ? "bg-white border border-gray-200 rounded-br-none" : "text-gray-900",
+            message.type === "user" ? "bg-black border border-gray-200 rounded-br-none" : "text-white",
           )}
         >
           {/* For user messages or completed system messages, render without animation */}
@@ -460,19 +460,19 @@ export default function ChatInterface() {
         {/* Message actions */}
         {message.type === "system" && message.completed && (
           <div className="flex items-center gap-2 px-4 mt-1 mb-2">
-            <button className="text-gray-400 hover:text-gray-600 transition-colors">
+            <button className="text-white/70 hover:text-white transition-colors">
               <RefreshCcw className="h-4 w-4" />
             </button>
-            <button className="text-gray-400 hover:text-gray-600 transition-colors">
+            <button className="text-white/70 hover:text-white transition-colors">
               <Copy className="h-4 w-4" />
             </button>
-            <button className="text-gray-400 hover:text-gray-600 transition-colors">
+            <button className="text-white/70 hover:text-white transition-colors">
               <Share2 className="h-4 w-4" />
             </button>
-            <button className="text-gray-400 hover:text-gray-600 transition-colors">
+            <button className="text-white/70 hover:text-white transition-colors">
               <ThumbsUp className="h-4 w-4" />
             </button>
-            <button className="text-gray-400 hover:text-gray-600 transition-colors">
+            <button className="text-white/70 hover:text-white transition-colors">
               <ThumbsDown className="h-4 w-4" />
             </button>
           </div>
@@ -489,26 +489,33 @@ export default function ChatInterface() {
   return (
     <div
       ref={mainContainerRef}
-      className="bg-gray-50 flex flex-col overflow-hidden"
+      className="flex flex-col overflow-hidden"
       style={{ height: isMobile ? `${viewportHeight}px` : "100svh" }}
     >
-      <header className="fixed top-0 left-0 right-0 h-12 flex items-center px-4 z-20 bg-gray-50">
+      <header
+        className="fixed top-0 left-0 right-0 h-12 flex items-center px-4 z-20 text-white"
+        style={{ background: "oklch(14.1% 0.005 285.823)" }}
+      >
         <div className="w-full flex items-center justify-between px-2">
           <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
-            <Menu className="h-5 w-5 text-gray-700" />
+            <Menu className="h-5 w-5 text-white" />
             <span className="sr-only">Menu</span>
           </Button>
 
-          <h1 className="text-base font-medium text-gray-800">v0 Chat</h1>
+          <h1 className="text-base font-medium text-white">v0 Chat</h1>
 
           <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
-            <PenSquare className="h-5 w-5 text-gray-700" />
+            <PenSquare className="h-5 w-5 text-white" />
             <span className="sr-only">New Chat</span>
           </Button>
         </div>
       </header>
 
-      <div ref={chatContainerRef} className="flex-grow pb-32 pt-12 px-4 overflow-y-auto">
+      <div
+        ref={chatContainerRef}
+        className="flex-grow pb-32 pt-12 px-4 overflow-y-auto text-white"
+        style={{ background: "oklch(14.1% 0.005 285.823)" }}
+      >
         <div className="max-w-3xl mx-auto space-y-4">
           {messageSections.map((section, sectionIndex) => (
             <div
@@ -535,12 +542,12 @@ export default function ChatInterface() {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gray-50">
+  <div className="fixed bottom-0 left-0 right-0 p-4" style={{ background: "rgba(255,255,255,0.06)" }}>
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
           <div
             ref={inputContainerRef}
             className={cn(
-              "relative w-full rounded-3xl border border-gray-200 bg-white p-3 cursor-text",
+              "relative w-full rounded-3xl border border-white/10 bg-white/6 p-3 cursor-text",
               isStreaming && "opacity-80",
             )}
             onClick={handleInputContainerClick}
@@ -549,7 +556,7 @@ export default function ChatInterface() {
               <Textarea
                 ref={textareaRef}
                 placeholder={isStreaming ? "Waiting for response..." : "Ask Anything"}
-                className="min-h-[24px] max-h-[160px] w-full rounded-3xl border-0 bg-transparent text-gray-900 placeholder:text-gray-400 placeholder:text-base focus-visible:ring-0 focus-visible:ring-offset-0 text-base pl-2 pr-4 pt-0 pb-0 resize-none overflow-y-auto leading-tight"
+                className="min-h-[24px] max-h-[160px] w-full rounded-3xl border-0 bg-transparent text-white placeholder:text-white/70 placeholder:text-base focus-visible:ring-0 focus-visible:ring-offset-0 text-base pl-2 pr-4 pt-0 pb-0 resize-none overflow-y-auto leading-tight"
                 value={inputValue}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
@@ -576,7 +583,7 @@ export default function ChatInterface() {
                     onClick={() => toggleButton("add")}
                     disabled={isStreaming}
                   >
-                    <Plus className={cn("h-4 w-4 text-gray-500", activeButton === "add" && "text-gray-700")} />
+                    <Plus className={cn("h-4 w-4 text-white/80", activeButton === "add" && "text-white")} />
                     <span className="sr-only">Add</span>
                   </Button>
 
@@ -590,8 +597,8 @@ export default function ChatInterface() {
                     onClick={() => toggleButton("deepSearch")}
                     disabled={isStreaming}
                   >
-                    <Search className={cn("h-4 w-4 text-gray-500", activeButton === "deepSearch" && "text-gray-700")} />
-                    <span className={cn("text-gray-900 text-sm", activeButton === "deepSearch" && "font-medium")}>
+                    <Search className={cn("h-4 w-4 text-white/80", activeButton === "deepSearch" && "text-white")} />
+                    <span className={cn("text-white text-sm", activeButton === "deepSearch" && "font-medium")}>
                       DeepSearch
                     </span>
                   </Button>
@@ -606,8 +613,8 @@ export default function ChatInterface() {
                     onClick={() => toggleButton("think")}
                     disabled={isStreaming}
                   >
-                    <Lightbulb className={cn("h-4 w-4 text-gray-500", activeButton === "think" && "text-gray-700")} />
-                    <span className={cn("text-gray-900 text-sm", activeButton === "think" && "font-medium")}>
+                    <Lightbulb className={cn("h-4 w-4 text-white/80", activeButton === "think" && "text-white")} />
+                    <span className={cn("text-white text-sm", activeButton === "think" && "font-medium")}>
                       Think
                     </span>
                   </Button>
@@ -623,7 +630,7 @@ export default function ChatInterface() {
                   )}
                   disabled={!inputValue.trim() || isStreaming}
                 >
-                  <ArrowUp className={cn("h-4 w-4 transition-colors", hasTyped ? "text-white" : "text-gray-500")} />
+                  <ArrowUp className={cn("h-4 w-4 transition-colors", hasTyped ? "text-white" : "text-white/70")} />
                   <span className="sr-only">Submit</span>
                 </Button>
               </div>
