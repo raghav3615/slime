@@ -1,9 +1,5 @@
-import React from 'react'
+import ChatInterface from "../../chat-interface"
 
-function page() {
-  return (
-    <div>page</div>
-  )
+export default function Page() {
+  return <ChatInterface />
 }
-
-export default page
