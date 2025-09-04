@@ -52,6 +52,7 @@ const CHUNK_SIZE = 2 // Number of words to add at once
 
 export default function ChatInterface() {
   const { data: session, status } = useSession()
+  // Calendar is authorized with Gmail, so we use the same session
   const [inputValue, setInputValue] = useState("")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
@@ -310,7 +311,9 @@ export default function ChatInterface() {
     // Add a delay before the second vibration
     setTimeout(() => {
       // Add vibration when streaming begins
-      navigator.vibrate(50)
+      if (navigator.vibrate) {
+        navigator.vibrate(50)
+      }
     }, 200) // 200ms delay to make it distinct from the first vibration
 
     // Stream the text
@@ -325,7 +328,9 @@ export default function ChatInterface() {
     setCompletedMessages((prev) => new Set(prev).add(messageId))
 
     // Add vibration when streaming ends
-    navigator.vibrate(50)
+    if (navigator.vibrate) {
+      navigator.vibrate(50)
+    }
 
     // Reset streaming state
     setStreamingWords([])
@@ -334,71 +339,111 @@ export default function ChatInterface() {
   }
 
   async function handleCommand(userMessage: string) {
-    // Very light command grammar:
+    // Supported commands:
     // send email to <email> subject:<text> body:<text>
-    // schedule email to <email> at <ISO or natural> subject:<text> body:<text>
+    // schedule email to <email> at <ISO> subject:<text> body:<text>
+    // schedule event summary:<text> start:<ISO> end:<ISO> [desc:<text>] [attendees:<comma emails>]
     const text = userMessage.trim()
     const lower = text.toLowerCase()
     const isSend = lower.startsWith("send email")
     const isSchedule = lower.startsWith("schedule email")
+    const isEvent = lower.startsWith("schedule event")
 
-    if (!isSend && !isSchedule) {
+    if (!isSend && !isSchedule && !isEvent) {
       await simulateAIResponse(userMessage)
       return
     }
 
     // Require auth
     if (status !== "authenticated") {
-      await simulateAIResponse("You need to connect Gmail first. Click Connect at the top right.")
+      await simulateAIResponse("You need to connect Gmail/Calendar first. Click Connect at the top right.")
       return
     }
 
-    // naive parse
-    const toMatch = text.match(/to\s+([^\s]+)\s/i)
-    const subjectMatch = text.match(/subject:\s*([^\n]+?)(?:\s+body:|$)/i)
-    const bodyMatch = text.match(/body:\s*([\s\S]+)/i)
-    const atMatch = text.match(/\s+at\s+([^\n]+?)\s+subject:/i)
+    if (isSend || isSchedule) {
+      // naive parse for email
+      const toMatch = text.match(/to\s+([^\s]+)\s/i)
+      const subjectMatch = text.match(/subject:\s*([^\n]+?)(?:\s+body:|$)/i)
+      const bodyMatch = text.match(/body:\s*([\s\S]+)/i)
+      const atMatch = text.match(/\s+at\s+([^\n]+?)\s+subject:/i)
 
-    const to = toMatch?.[1]
-    const subject = subjectMatch?.[1]?.trim()
-    const body = bodyMatch?.[1]?.trim()
-    if (!to || !subject || !body) {
-      await simulateAIResponse(
-        "Couldn't parse. Try: send email to someone@example.com subject: Hello body: Hi there"
-      )
-      return
-    }
-
-    try {
-      if (isSend) {
-        const res = await fetch("/api/gmail/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ to, subject, text: body }),
-        })
-        if (!res.ok) throw new Error(await res.text())
-        await simulateAIResponse(`Sent email to ${to} with subject "${subject}"`)
-      } else if (isSchedule) {
-        const whenStr = atMatch?.[1]?.trim()
-        let when: Date | null = null
-        if (whenStr) {
-          const d = new Date(whenStr)
-          if (!Number.isNaN(d.getTime())) when = d
-        }
-        if (!when) {
-          await simulateAIResponse("Invalid time. Use ISO like 2025-09-05T15:00:00Z")
-          return
-        }
-        const res = await fetch("/api/gmail/schedule", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ to, subject, text: body, sendAt: when.toISOString() }),
-        })
-        if (!res.ok) throw new Error(await res.text())
-        await simulateAIResponse(`Scheduled email to ${to} at ${when.toISOString()}`)
+      const to = toMatch?.[1]
+      const subject = subjectMatch?.[1]?.trim()
+      const body = bodyMatch?.[1]?.trim()
+      if (!to || !subject || !body) {
+        await simulateAIResponse(
+          "Couldn't parse. Try: send email to someone@example.com subject: Hello body: Hi there"
+        )
+        return
       }
-    } catch (e: any) {
-      await simulateAIResponse(`Failed: ${e?.message ?? "Unknown error"}`)
+
+      try {
+        if (isSend) {
+          const res = await fetch("/api/gmail/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ to, subject, text: body }),
+          })
+          if (!res.ok) throw new Error(await res.text())
+          await simulateAIResponse(`Sent email to ${to} with subject "${subject}"`)
+        } else if (isSchedule) {
+          const whenStr = atMatch?.[1]?.trim()
+          let when: Date | null = null
+          if (whenStr) {
+            const d = new Date(whenStr)
+            if (!Number.isNaN(d.getTime())) when = d
+          }
+          if (!when) {
+            await simulateAIResponse("Invalid time. Use ISO like 2025-09-05T15:00:00Z")
+            return
+          }
+          const res = await fetch("/api/gmail/schedule", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ to, subject, text: body, sendAt: when.toISOString() }),
+          })
+          if (!res.ok) throw new Error(await res.text())
+          await simulateAIResponse(`Scheduled email to ${to} at ${when.toISOString()}`)
+        }
+      } catch (e: any) {
+        await simulateAIResponse(`Failed: ${e?.message ?? "Unknown error"}`)
+      }
+      return
+    }
+
+    if (isEvent) {
+      // schedule event summary:<text> start:<ISO> end:<ISO> [desc:<text>] [attendees:<comma emails>]
+      const summaryMatch = text.match(/summary:\s*([^\n]+?)(?:\s+start:|$)/i)
+      const startMatch = text.match(/start:\s*([^\s]+)\s/i)
+      const endMatch = text.match(/end:\s*([^\s]+)\s?/i)
+      const descMatch = text.match(/desc:\s*([^\n]+?)(?:\s+attendees:|$)/i)
+      const attendeesMatch = text.match(/attendees:\s*([^\n]+)/i)
+
+      const summary = summaryMatch?.[1]?.trim()
+      const start = startMatch?.[1]?.trim()
+      const end = endMatch?.[1]?.trim()
+      const description = descMatch?.[1]?.trim()
+      const attendees = attendeesMatch?.[1]?.split(",").map(e => e.trim()).filter(Boolean)
+
+      if (!summary || !start || !end) {
+        await simulateAIResponse(
+          "Couldn't parse. Try: schedule event summary:Meeting start:2025-09-05T15:00:00Z end:2025-09-05T16:00:00Z desc:Discuss project attendees:alice@example.com,bob@example.com"
+        )
+        return
+      }
+      try {
+        const res = await fetch("/api/calendar/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ summary, description, start, end, attendees }),
+        })
+        if (!res.ok) throw new Error(await res.text())
+        const data = await res.json()
+        await simulateAIResponse(`Scheduled event "${summary}" at ${start}. Link: ${data.htmlLink}`)
+      } catch (e: any) {
+        await simulateAIResponse(`Failed: ${e?.message ?? "Unknown error"}`)
+      }
+      return
     }
   }
 
@@ -428,7 +473,9 @@ export default function ChatInterface() {
     e.preventDefault()
     if (inputValue.trim() && !isStreaming) {
       // Add vibration when message is submitted
-      navigator.vibrate(50)
+      if (navigator.vibrate) {
+        navigator.vibrate(50)
+      }
 
       const userMessage = inputValue.trim()
 
@@ -464,8 +511,8 @@ export default function ChatInterface() {
         }
       }
 
-  // Start command handler or AI response
-  handleCommand(userMessage)
+      // Start command handler or AI response
+      handleCommand(userMessage)
     }
   }
 
@@ -573,25 +620,36 @@ export default function ChatInterface() {
             <span className="sr-only">Menu</span>
           </Button>
 
-          <h1 className="text-base font-medium text-white">v0 Chat</h1>
+          <h1 className="text-base font-medium text-white">Slime</h1>
 
           <div className="flex items-center gap-2">
             {status === "authenticated" ? (
-              <Button
-                variant="outline"
-                className="h-8 rounded-full text-white border-white/20"
-                onClick={() => signOut()}
-              >
-                Disconnect Gmail
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  className="h-8 rounded-full text-white border-white/20"
+                  onClick={() => signOut()}
+                >
+                  Disconnect Gmail/Calendar
+                </Button>
+              </>
             ) : (
-              <Button
-                variant="outline"
-                className="h-8 rounded-full text-white border-white/20"
-                onClick={() => signIn("google")}
-              >
-                Connect Gmail
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  className="h-8 rounded-full text-white border-white/20"
+                  onClick={() => signIn("google")}
+                >
+                  Connect Gmail
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-8 rounded-full text-white border-white/20"
+                  onClick={() => signIn("google")}
+                >
+                  Connect Calendar
+                </Button>
+              </>
             )}
           </div>
         </div>

@@ -61,8 +61,10 @@ export const authOptions: NextAuthOptions = {
             "openid",
             "email",
             "profile",
-            // Gmail send scope
+            // Gmail send
             "https://www.googleapis.com/auth/gmail.send",
+            // Calendar events
+            "https://www.googleapis.com/auth/calendar.events",
           ].join(" "),
         },
       },

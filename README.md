@@ -13,5 +13,4 @@ Environment variables required:
 - NEXTAUTH_SECRET (random string)
 
 Limitations: the scheduler is in-memory for demo purposes and not durable in serverless environments.
-## Slime 
 
