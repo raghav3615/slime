@@ -17,6 +17,7 @@ import {
   ThumbsUp,
   ThumbsDown,
 } from "lucide-react"
+import { useSession, signIn, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
@@ -50,6 +51,7 @@ const WORD_DELAY = 40 // ms per word
 const CHUNK_SIZE = 2 // Number of words to add at once
 
 export default function ChatInterface() {
+  const { data: session, status } = useSession()
   const [inputValue, setInputValue] = useState("")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
@@ -290,7 +292,7 @@ export default function ChatInterface() {
   }
 
   const simulateAIResponse = async (userMessage: string) => {
-    const response = getAIResponse(userMessage)
+  const response = getAIResponse(userMessage)
 
     // Create a new message with empty content
     const messageId = Date.now().toString()
@@ -329,6 +331,75 @@ export default function ChatInterface() {
     setStreamingWords([])
     setStreamingMessageId(null)
     setIsStreaming(false)
+  }
+
+  async function handleCommand(userMessage: string) {
+    // Very light command grammar:
+    // send email to <email> subject:<text> body:<text>
+    // schedule email to <email> at <ISO or natural> subject:<text> body:<text>
+    const text = userMessage.trim()
+    const lower = text.toLowerCase()
+    const isSend = lower.startsWith("send email")
+    const isSchedule = lower.startsWith("schedule email")
+
+    if (!isSend && !isSchedule) {
+      await simulateAIResponse(userMessage)
+      return
+    }
+
+    // Require auth
+    if (status !== "authenticated") {
+      await simulateAIResponse("You need to connect Gmail first. Click Connect at the top right.")
+      return
+    }
+
+    // naive parse
+    const toMatch = text.match(/to\s+([^\s]+)\s/i)
+    const subjectMatch = text.match(/subject:\s*([^\n]+?)(?:\s+body:|$)/i)
+    const bodyMatch = text.match(/body:\s*([\s\S]+)/i)
+    const atMatch = text.match(/\s+at\s+([^\n]+?)\s+subject:/i)
+
+    const to = toMatch?.[1]
+    const subject = subjectMatch?.[1]?.trim()
+    const body = bodyMatch?.[1]?.trim()
+    if (!to || !subject || !body) {
+      await simulateAIResponse(
+        "Couldn't parse. Try: send email to someone@example.com subject: Hello body: Hi there"
+      )
+      return
+    }
+
+    try {
+      if (isSend) {
+        const res = await fetch("/api/gmail/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ to, subject, text: body }),
+        })
+        if (!res.ok) throw new Error(await res.text())
+        await simulateAIResponse(`Sent email to ${to} with subject "${subject}"`)
+      } else if (isSchedule) {
+        const whenStr = atMatch?.[1]?.trim()
+        let when: Date | null = null
+        if (whenStr) {
+          const d = new Date(whenStr)
+          if (!Number.isNaN(d.getTime())) when = d
+        }
+        if (!when) {
+          await simulateAIResponse("Invalid time. Use ISO like 2025-09-05T15:00:00Z")
+          return
+        }
+        const res = await fetch("/api/gmail/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ to, subject, text: body, sendAt: when.toISOString() }),
+        })
+        if (!res.ok) throw new Error(await res.text())
+        await simulateAIResponse(`Scheduled email to ${to} at ${when.toISOString()}`)
+      }
+    } catch (e: any) {
+      await simulateAIResponse(`Failed: ${e?.message ?? "Unknown error"}`)
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -393,8 +464,8 @@ export default function ChatInterface() {
         }
       }
 
-      // Start AI response
-      simulateAIResponse(userMessage)
+  // Start command handler or AI response
+  handleCommand(userMessage)
     }
   }
 
@@ -504,10 +575,25 @@ export default function ChatInterface() {
 
           <h1 className="text-base font-medium text-white">v0 Chat</h1>
 
-          <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
-            <PenSquare className="h-5 w-5 text-white" />
-            <span className="sr-only">New Chat</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            {status === "authenticated" ? (
+              <Button
+                variant="outline"
+                className="h-8 rounded-full text-white border-white/20"
+                onClick={() => signOut()}
+              >
+                Disconnect Gmail
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="h-8 rounded-full text-white border-white/20"
+                onClick={() => signIn("google")}
+              >
+                Connect Gmail
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
