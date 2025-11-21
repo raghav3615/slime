@@ -18,7 +18,7 @@
 
 ## 🎯 What is Fuzzie?
 
-Fuzzie is a powerful visual automation platform that connects your favorite productivity tools. Build sophisticated workflows with a drag-and-drop interface—no coding required. Trigger actions across Google Drive, Slack, Notion, and Discord seamlessly.
+Fuzzie is a powerful visual automation platform that connects your favorite productivity tools. Build sophisticated workflows with a drag-and-drop interface no coding required. Trigger actions across Google Drive, Slack, Notion, and Discord seamlessly.
 
 **Think IFTTT or Zapier, but with a beautiful visual editor.**
 
